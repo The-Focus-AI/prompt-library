@@ -12,9 +12,13 @@ A simple tool to run prompts against files using various LLM models.
 
 To enable zsh completion for run-prompt:
 
+(update to where you have this installed)
+
 ```bash
 # Add this to your .zshrc
-fpath=(/path/to/this/repo $fpath)
+PROMPT_LIBRARY_PATH="/Users/wschenk/prompt-library"
+fpath=($PROMPT_LIBRARY_PATH $fpath)
+export PATH="$PROMPT_LIBRARY_PATH:$PATH"
 autoload -Uz compinit
 compinit
 ```
@@ -22,13 +26,13 @@ compinit
 ## Usage
 
 ```bash
-./run-prompt <prompt_file> <input_file>
+run-prompt <prompt_file> <input_file>
 ```
 
 You can optionally specify a different model using the MODEL environment variable:
 
 ```bash
-MODEL=claude-3.7-sonnet ./run-prompt <prompt_file> <input_file>
+MODEL=claude-3.7-sonnet run-prompt <prompt_file> <input_file>
 ```
 
 The default model is claude-3.7-sonnet.

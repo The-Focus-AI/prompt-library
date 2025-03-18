@@ -11,10 +11,17 @@ _run_prompt() {
     "$PWD/planning"
   )
   
-  # Find all markdown files in the prompt directories
+  # Find all markdown files in the prompt directories and include their relative paths
   for dir in $prompt_dirs; do
     if [[ -d $dir ]]; then
-      prompt_files+=($dir/*.md(:t))
+      local base_dir=${dir#$PWD/}
+      for file in $dir/*.md(.N); do
+        local file_name=${file:t:r}
+        # Skip README files
+        if [[ $file_name != README && $file_name != readme ]]; then
+          prompt_files+=("$base_dir/$file_name")
+        fi
+      done
     fi
   done
   
