@@ -1,0 +1,33 @@
+#compdef run-prompt
+
+# Zsh completion function for run-prompt
+
+_run_prompt() {
+  local -a prompt_files
+  local -a prompt_dirs=(
+    "$PWD/content"
+    "$PWD/code"
+    "$PWD/code/repomix"
+    "$PWD/planning"
+  )
+  
+  # Find all markdown files in the prompt directories
+  for dir in $prompt_dirs; do
+    if [[ -d $dir ]]; then
+      prompt_files+=($dir/*.md(:t))
+    fi
+  done
+  
+  # Define the different contexts
+  _arguments -C \
+    '1:prompt file:->prompts' \
+    '2:input file:_files'
+    
+  case $state in
+    prompts)
+      _describe 'prompt files' prompt_files
+      ;;
+  esac
+}
+
+_run_prompt "$@"

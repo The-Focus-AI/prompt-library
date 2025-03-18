@@ -8,6 +8,17 @@ A simple tool to run prompts against files using various LLM models.
 2. Clone this repository
 3. Make the script executable: `chmod +x run-prompt`
 
+### ZSH Completion
+
+To enable zsh completion for run-prompt:
+
+```bash
+# Add this to your .zshrc
+fpath=(/path/to/this/repo $fpath)
+autoload -Uz compinit
+compinit
+```
+
 ## Usage
 
 ```bash
