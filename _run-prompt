@@ -3,18 +3,20 @@
 # Zsh completion function for run-prompt
 
 _run_prompt() {
+  local script_dir=${0:A:h}  # Get the absolute path of the script's directory
+  echo "Zsh completion script directory: $script_dir"
   local -a prompt_files
   local -a prompt_dirs=(
-    "$PWD/content"
-    "$PWD/code"
-    "$PWD/code/repomix"
-    "$PWD/planning"
+    "$script_dir/content"
+    "$script_dir/code"
+    "$script_dir/code/repomix"
+    "$script_dir/planning"
   )
   
   # Find all markdown files in the prompt directories and include their relative paths
   for dir in $prompt_dirs; do
     if [[ -d $dir ]]; then
-      local base_dir=${dir#$PWD/}
+      local base_dir=${dir#$script_dir/}
       for file in $dir/*.md(.N); do
         local file_name=${file:t:r}
         # Skip README files

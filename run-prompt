@@ -28,11 +28,13 @@ def find_prompt_file(prompt_name: str, script_dir: Path) -> Path | None:
     base_name = prompt_name.split('-')[-1]
     base_name_md = base_name if base_name.endswith('.md') else f"{base_name}.md"
     
-    # Check in current directory
-    if Path(prompt_name).exists():
-        return Path(prompt_name)
-    if Path(prompt_name_md).exists():
-        return Path(prompt_name_md)
+    # First try treating the prompt_name as a path relative to script_dir
+    direct_path = script_dir / prompt_name
+    direct_path_md = script_dir / prompt_name_md
+    if direct_path.is_file():
+        return direct_path
+    if direct_path_md.is_file():
+        return direct_path_md
     
     # Check in script directory and all subdirectories
     for path in script_dir.rglob("*.md"):
@@ -87,6 +89,7 @@ def main(prompt: str, file: str | None):
     """Run a prompt against input from a file or stdin, or serve as an MCP endpoint."""
     # Get the directory where this script is located
     script_dir = Path(__file__).parent
+    print(f"Python script directory: {script_dir}")
     
     # Get MODEL from environment, default to claude-3.7-sonnet
     model = os.environ.get('MODEL', 'claude-3.7-sonnet')

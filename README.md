@@ -41,7 +41,7 @@ The default model is claude-3.7-sonnet.
 
 ### MCP Server
 
-npx @modelcontextprotocol/inspector uv run run_prompt.py mcp
+npx @modelcontextprotocol/inspector uv run run-prompt mcp
 
 ## Available Prompts
 
