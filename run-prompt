@@ -1,46 +1,119 @@
-#!/bin/bash
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "click",
+#     "mcp[cli]",
+# ]
+# ///
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <prompt> <file>"
-    exit 1
-fi
+import os
+import sys
+import click
+from pathlib import Path
+import subprocess
+from mcp.server.fastmcp import FastMCP
 
-# Try different variations of the prompt file
-PROMPT_FILE=""
-PROMPT_NAME="$1"
-PROMPT_NAME_MD="${PROMPT_NAME%.md}.md"  # Ensure .md extension
+def find_prompt_file(prompt_name: str, script_dir: Path) -> Path | None:
+    """Find the prompt file in various locations."""
+    # Try different variations of the prompt file
+    prompt_name_md = prompt_name if prompt_name.endswith('.md') else f"{prompt_name}.md"
+    
+    # Check in current directory
+    if Path(prompt_name).exists():
+        return Path(prompt_name)
+    if Path(prompt_name_md).exists():
+        return Path(prompt_name_md)
+    
+    # Check in script directory
+    if (script_dir / prompt_name).exists():
+        return script_dir / prompt_name
+    if (script_dir / prompt_name_md).exists():
+        return script_dir / prompt_name_md
+    
+    return None
 
-# Check in current directory
-if [ -f "$PROMPT_NAME" ]; then
-    PROMPT_FILE="$PROMPT_NAME"
-elif [ -f "$PROMPT_NAME_MD" ]; then
-    PROMPT_FILE="$PROMPT_NAME_MD"
-# Check in script directory
-elif [ -f "$SCRIPT_DIR/$PROMPT_NAME" ]; then
-    PROMPT_FILE="$SCRIPT_DIR/$PROMPT_NAME"
-elif [ -f "$SCRIPT_DIR/$PROMPT_NAME_MD" ]; then
-    PROMPT_FILE="$SCRIPT_DIR/$PROMPT_NAME_MD"
-fi
+def find_all_prompt_files(script_dir: Path) -> list[Path]:
+    """Find all prompt files in the code, content, and planning directories."""
+    prompt_files = []
+    
+    # Define directories to search
+    search_dirs = [
+        script_dir / "code",
+        script_dir / "code" / "repomix",
+        script_dir / "content",
+        script_dir / "planning"
+    ]
+    
+    # Search each directory for .md files that aren't README
+    for directory in search_dirs:
+        if directory.exists():
+            for file in directory.glob("*.md"):
+                if file.stem.lower() != "readme":
+                    prompt_files.append(file)
+    
+    return prompt_files
 
-if [ -z "$PROMPT_FILE" ]; then
-    echo "Unable to find prompt file: $PROMPT_NAME (also tried with .md extension)"
-    exit 1
-fi
+def run_prompt(prompt_file: Path, input_text: str, model: str) -> int:
+    """Run a prompt against input text and return the exit code."""
+    with open(prompt_file) as f:
+        prompt_content = f.read()
+    
+    cmd = ['llm', '-m', model, prompt_content]
+    process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    process.communicate(input=input_text.encode())
+    return process.returncode
 
-# Get MODEL from environment, default to claude-3.7-sonnet
-MODEL=${MODEL:-claude-3.7-sonnet}
+@click.command()
+@click.argument('prompt')
+@click.argument('file', required=False, type=click.Path(exists=True))
+def main(prompt: str, file: str | None):
+    """Run a prompt against input from a file or stdin, or serve as an MCP endpoint."""
+    # Get the directory where this script is located
+    script_dir = Path(__file__).parent
+    
+    # Get MODEL from environment, default to claude-3.7-sonnet
+    model = os.environ.get('MODEL', 'claude-3.7-sonnet')
+    
+    if prompt == "mcp":
+        # Create MCP server in stdio mode
+        mcp_server = FastMCP("prompt-library")
+        
+        # Find all available prompt files
+        prompt_files = find_all_prompt_files(script_dir)
+        
+        # Create an endpoint for each prompt file
+        for prompt_file in prompt_files:
+            # Use relative path from script_dir as the prompt name
+            prompt_name = str(prompt_file.relative_to(script_dir)).replace('/', '-').replace('.md', '')
+            
+            @mcp_server.prompt(name=prompt_name)
+            # async def get_prompt(context: str, file=prompt_file) -> str:
+            def get_prompt(file=prompt_file) -> str:
+                """Return the prompt content."""
+                with open(file) as f:
+                    return f.read()
+        
+        # Run the server in stdio mode
+        mcp_server.run(transport='stdio')
+        return
+    
+    # Find the prompt file for regular mode
+    prompt_file = find_prompt_file(prompt, script_dir)
+    if not prompt_file:
+        click.echo(f"Unable to find prompt file: {prompt} (also tried with .md extension)")
+        sys.exit(1)
+    
+    # Regular CLI mode
+    click.echo(f"[{model}] Running prompt: {prompt_file}")
+    
+    if file:
+        with open(file) as f:
+            input_text = f.read()
+    else:
+        input_text = sys.stdin.read()
+    
+    sys.exit(run_prompt(prompt_file, input_text, model))
 
-echo "[$MODEL] Running prompt: $PROMPT_FILE"
-
-if [ -z "$2" ]; then
-    # If no file is specified, read from stdin
-    cat | \
-    llm -m $MODEL \
-        "$(cat $PROMPT_FILE)"
-else
-    # Read from the specified file
-    cat "$2" | \
-    llm -m $MODEL \
-        "$(cat $PROMPT_FILE)"
-fi
-	
+if __name__ == '__main__':
+    main() 

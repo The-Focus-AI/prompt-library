@@ -25,6 +25,8 @@ compinit
 
 ## Usage
 
+### CLI
+
 ```bash
 run-prompt <prompt_file> <input_file>
 ```
@@ -36,6 +38,10 @@ MODEL=claude-3.7-sonnet run-prompt <prompt_file> <input_file>
 ```
 
 The default model is claude-3.7-sonnet.
+
+### MCP Server
+
+npx @modelcontextprotocol/inspector uv run run_prompt.py mcp
 
 ## Available Prompts
 
