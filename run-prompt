@@ -34,58 +34,39 @@ def find_prompt_file(prompt_name: str, script_dir: Path) -> Path | None:
     if Path(prompt_name_md).exists():
         return Path(prompt_name_md)
     
-    # Check in script directory and its subdirectories
-    search_dirs = [
-        script_dir / "code",
-        script_dir / "code" / "repomix",
-        script_dir / "content",
-        script_dir / "planning"
-    ]
-    
-    # If prompt starts with a directory name (e.g. code-lint), prioritize that directory
-    if '-' in prompt_name:
-        dir_prefix = prompt_name.split('-')[0]
-        if (script_dir / dir_prefix).exists():
-            search_dirs.insert(0, script_dir / dir_prefix)
-    
-    for directory in search_dirs:
-        if directory.exists():
-            # Try both with and without .md extension
-            if (directory / prompt_path).exists():
-                return directory / prompt_path
-            if (directory / prompt_path_md).exists():
-                return directory / prompt_path_md
-            # Try direct filename in this directory
-            if (directory / prompt_name).exists():
-                return directory / prompt_name
-            if (directory / prompt_name_md).exists():
-                return directory / prompt_name_md
-            # Try with just the base name
-            if (directory / base_name).exists():
-                return directory / base_name
-            if (directory / base_name_md).exists():
-                return directory / base_name_md
+    # Check in script directory and all subdirectories
+    for path in script_dir.rglob("*.md"):
+        # Skip hidden directories
+        if any(part.startswith('.') for part in path.parts):
+            continue
+            
+        # Try matching against the full path relative to script_dir
+        relative_path = str(path.relative_to(script_dir))
+        relative_name = relative_path.replace('/', '-').replace('.md', '')
+        
+        if relative_name == prompt_name:
+            return path
+            
+        # Try matching against just the filename
+        if path.stem == base_name:
+            return path
+            
+        # Try matching against directory structure
+        if str(path) == str(script_dir / prompt_path_md):
+            return path
     
     return None
 
 def find_all_prompt_files(script_dir: Path) -> list[Path]:
-    """Find all prompt files in the code, content, and planning directories."""
+    """Find all prompt files in any directory under the script directory."""
     prompt_files = []
     
-    # Define directories to search
-    search_dirs = [
-        script_dir / "code",
-        script_dir / "code" / "repomix",
-        script_dir / "content",
-        script_dir / "planning"
-    ]
-    
-    # Search each directory for .md files that aren't README
-    for directory in search_dirs:
-        if directory.exists():
-            for file in directory.glob("*.md"):
-                if file.stem.lower() != "readme":
-                    prompt_files.append(file)
+    # Walk through all directories
+    for path in script_dir.rglob("*.md"):
+        # Skip README files and hidden directories
+        if (path.stem.lower() != "readme" and 
+            not any(part.startswith('.') for part in path.parts)):
+            prompt_files.append(path)
     
     return prompt_files
 
@@ -137,42 +118,27 @@ def main(prompt: str, file: str | None):
                 return f.read()
 
         # Add save-prompt command as a tool
-        @mcp_server.tool(name="save-prompt", description="Save a new prompt file with the given title and body")
-        def save_prompt(title: str, body: str) -> str:
-            """Save a new prompt file with the given title and body."""
-            # Validate title format
+        @mcp_server.tool(name="save-prompt", description="Save a new prompt file with the given section, title and body")
+        def save_prompt(section: str, title: str, body: str) -> str:
+            """Save a new prompt file with the given section, title and body."""
+            # Validate section and title format
+            if not section or not section.islower() or not all(c.isalnum() or c == '-' for c in section):
+                return "Error: Section must be lowercase letters, numbers, and hyphens only"
             if not title or not title.islower() or not all(c.isalnum() or c == '-' for c in title):
                 return "Error: Title must be lowercase letters, numbers, and hyphens only"
             
-            # Determine the directory based on the first part of the title
-            parts = title.split('-')
-            if len(parts) < 2:
-                return "Error: Title must have at least two parts separated by hyphens (e.g., 'code-lint')"
-            
-            dir_name = parts[0]
-            file_name = '-'.join(parts[1:]) + '.md'
-            
-            # Map directory names to valid directories
-            valid_dirs = {
-                'code': script_dir / 'code',
-                'content': script_dir / 'content',
-                'planning': script_dir / 'planning'
-            }
-            
             # Special case for repomix
-            if len(parts) > 2 and parts[0] == 'code' and parts[1] == 'repomix':
-                target_dir = script_dir / 'code' / 'repomix'
-                file_name = '-'.join(parts[2:]) + '.md'
-            elif dir_name not in valid_dirs:
-                return f"Error: First part of title must be one of: {', '.join(valid_dirs.keys())}"
+            if section == "code-repomix":
+                target_dir = script_dir / "code" / "repomix"
             else:
-                target_dir = valid_dirs[dir_name]
+                target_dir = script_dir / section
+            
+            # Create the file
+            target_file = target_dir / f"{title}.md"
             
             # Ensure target directory exists
             target_dir.mkdir(parents=True, exist_ok=True)
             
-            # Create the file
-            target_file = target_dir / file_name
             if target_file.exists():
                 return f"Error: Prompt file already exists: {target_file}"
             
