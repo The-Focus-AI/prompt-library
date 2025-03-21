@@ -19,17 +19,52 @@ def find_prompt_file(prompt_name: str, script_dir: Path) -> Path | None:
     # Try different variations of the prompt file
     prompt_name_md = prompt_name if prompt_name.endswith('.md') else f"{prompt_name}.md"
     
+    # Convert hyphenated names back to directory structure
+    # e.g. 'code-lint' -> 'code/lint'
+    prompt_path = prompt_name.replace('-', '/')
+    prompt_path_md = prompt_path if prompt_path.endswith('.md') else f"{prompt_path}.md"
+    
+    # If prompt starts with directory name (e.g. code-lint), also try just the base name
+    base_name = prompt_name.split('-')[-1]
+    base_name_md = base_name if base_name.endswith('.md') else f"{base_name}.md"
+    
     # Check in current directory
     if Path(prompt_name).exists():
         return Path(prompt_name)
     if Path(prompt_name_md).exists():
         return Path(prompt_name_md)
     
-    # Check in script directory
-    if (script_dir / prompt_name).exists():
-        return script_dir / prompt_name
-    if (script_dir / prompt_name_md).exists():
-        return script_dir / prompt_name_md
+    # Check in script directory and its subdirectories
+    search_dirs = [
+        script_dir / "code",
+        script_dir / "code" / "repomix",
+        script_dir / "content",
+        script_dir / "planning"
+    ]
+    
+    # If prompt starts with a directory name (e.g. code-lint), prioritize that directory
+    if '-' in prompt_name:
+        dir_prefix = prompt_name.split('-')[0]
+        if (script_dir / dir_prefix).exists():
+            search_dirs.insert(0, script_dir / dir_prefix)
+    
+    for directory in search_dirs:
+        if directory.exists():
+            # Try both with and without .md extension
+            if (directory / prompt_path).exists():
+                return directory / prompt_path
+            if (directory / prompt_path_md).exists():
+                return directory / prompt_path_md
+            # Try direct filename in this directory
+            if (directory / prompt_name).exists():
+                return directory / prompt_name
+            if (directory / prompt_name_md).exists():
+                return directory / prompt_name_md
+            # Try with just the base name
+            if (directory / base_name).exists():
+                return directory / base_name
+            if (directory / base_name_md).exists():
+                return directory / base_name_md
     
     return None
 
@@ -79,20 +114,87 @@ def main(prompt: str, file: str | None):
         # Create MCP server in stdio mode
         mcp_server = FastMCP("prompt-library")
         
-        # Find all available prompt files
-        prompt_files = find_all_prompt_files(script_dir)
+        # Add list-prompts command as a tool
+        @mcp_server.tool(name="list-prompts", description="List all available prompts")
+        def list_prompts() -> str:
+            """List all available prompts."""
+            prompt_files = find_all_prompt_files(script_dir)
+            result = "Available prompts:\n\n"
+            for prompt_file in prompt_files:
+                prompt_name = str(prompt_file.relative_to(script_dir)).replace('/', '-').replace('.md', '')
+                result += f"- {prompt_name}\n"
+            return result
         
-        # Create an endpoint for each prompt file
+        # Add load-prompt command as a tool
+        @mcp_server.tool(name="load-prompt", description="Load and return the contents of a specific prompt")
+        def load_prompt(prompt_name: str) -> str:
+            """Load and return the contents of a specific prompt."""
+            prompt_file = find_prompt_file(prompt_name, script_dir)
+            if not prompt_file:
+                return f"Error: Unable to find prompt file: {prompt_name}"
+            
+            with open(prompt_file) as f:
+                return f.read()
+
+        # Add save-prompt command as a tool
+        @mcp_server.tool(name="save-prompt", description="Save a new prompt file with the given title and body")
+        def save_prompt(title: str, body: str) -> str:
+            """Save a new prompt file with the given title and body."""
+            # Validate title format
+            if not title or not title.islower() or not all(c.isalnum() or c == '-' for c in title):
+                return "Error: Title must be lowercase letters, numbers, and hyphens only"
+            
+            # Determine the directory based on the first part of the title
+            parts = title.split('-')
+            if len(parts) < 2:
+                return "Error: Title must have at least two parts separated by hyphens (e.g., 'code-lint')"
+            
+            dir_name = parts[0]
+            file_name = '-'.join(parts[1:]) + '.md'
+            
+            # Map directory names to valid directories
+            valid_dirs = {
+                'code': script_dir / 'code',
+                'content': script_dir / 'content',
+                'planning': script_dir / 'planning'
+            }
+            
+            # Special case for repomix
+            if len(parts) > 2 and parts[0] == 'code' and parts[1] == 'repomix':
+                target_dir = script_dir / 'code' / 'repomix'
+                file_name = '-'.join(parts[2:]) + '.md'
+            elif dir_name not in valid_dirs:
+                return f"Error: First part of title must be one of: {', '.join(valid_dirs.keys())}"
+            else:
+                target_dir = valid_dirs[dir_name]
+            
+            # Ensure target directory exists
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create the file
+            target_file = target_dir / file_name
+            if target_file.exists():
+                return f"Error: Prompt file already exists: {target_file}"
+            
+            with open(target_file, 'w') as f:
+                f.write(body)
+            
+            return f"Successfully saved prompt to {target_file}"
+        
+        # Find all available prompt files and create prompt endpoints
+        prompt_files = find_all_prompt_files(script_dir)
         for prompt_file in prompt_files:
             # Use relative path from script_dir as the prompt name
             prompt_name = str(prompt_file.relative_to(script_dir)).replace('/', '-').replace('.md', '')
             
-            @mcp_server.prompt(name=prompt_name)
-            # async def get_prompt(context: str, file=prompt_file) -> str:
-            def get_prompt(file=prompt_file) -> str:
-                """Return the prompt content."""
-                with open(file) as f:
-                    return f.read()
+            def create_prompt_handler(file_path):
+                def get_prompt() -> str:
+                    """Return the prompt content."""
+                    with open(file_path) as f:
+                        return f.read()
+                return get_prompt
+            
+            mcp_server.prompt(name=prompt_name)(create_prompt_handler(prompt_file))
         
         # Run the server in stdio mode
         mcp_server.run(transport='stdio')
