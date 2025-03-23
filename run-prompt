@@ -4,6 +4,7 @@
 # dependencies = [
 #     "click",
 #     "mcp[cli]",
+#     "PyYAML",
 # ]
 # ///
 
@@ -12,7 +13,22 @@ import sys
 import click
 from pathlib import Path
 import subprocess
+import yaml
 from mcp.server.fastmcp import FastMCP
+
+def parse_prompt_metadata(file_path: Path) -> dict | None:
+    """Parse metadata from a prompt file if it exists."""
+    with open(file_path) as f:
+        content = f.read()
+    
+    if not content.startswith('---\n'):
+        return None
+        
+    try:
+        _, metadata_yaml, _ = content.split('---\n', 2)
+        return yaml.safe_load(metadata_yaml)
+    except Exception:
+        return None
 
 def find_prompt_file(prompt_name: str, script_dir: Path) -> Path | None:
     """Find the prompt file in various locations."""
@@ -77,7 +93,20 @@ def find_all_prompt_files(script_dir: Path) -> list[Path]:
 def run_prompt(prompt_file: Path, input_text: str, model: str) -> int:
     """Run a prompt against input text and return the exit code."""
     with open(prompt_file) as f:
-        prompt_content = f.read()
+        content = f.read()
+    
+    # Strip YAML front matter if present
+    if content.startswith('---\n'):
+        try:
+            _, _, prompt_content = content.split('---\n', 2)
+        except ValueError:
+            # If splitting fails, use the original content
+            prompt_content = content
+    else:
+        prompt_content = content
+    
+    # Remove any leading whitespace/newlines but preserve other formatting
+    prompt_content = prompt_content.lstrip()
     
     cmd = ['llm', '-m', model, prompt_content]
     process = subprocess.Popen(cmd, stdin=subprocess.PIPE)
@@ -111,12 +140,28 @@ def main(prompt: str, file: str | None):
             for prompt_file in prompt_files:
                 prompt_name = str(prompt_file.relative_to(script_dir)).replace('/', '-').replace('.md', '')
                 result += f"- {prompt_name}\n"
+                
+                # Add metadata if available
+                metadata = parse_prompt_metadata(prompt_file)
+                if metadata:
+                    if 'description' in metadata:
+                        result += f"  Description: {metadata['description']}\n"
+                    if 'when_to_use' in metadata:
+                        result += "  When to use:\n"
+                        for use_case in metadata['when_to_use']:
+                            result += f"    - {use_case}\n"
+                    result += "\n"
             return result
         
         # Add load-prompt command as a tool
         @mcp_server.tool(name="mcp_prompt_library_load_prompt", description="Load and return the contents of a specific prompt. Only use this tool when the user explicitly requests to view the contents of a specific prompt from their prompt library.")
         def load_prompt(prompt_name: str) -> str:
-            """Load and return the contents of a specific prompt."""
+            """Load and return the contents of a specific prompt.
+            
+            Args:
+                prompt_name: The name of the prompt to load. Can be specified as a path (e.g., 'content/summarize') 
+                           or as a hyphenated name (e.g., 'content-summarize').
+            """
             prompt_file = find_prompt_file(prompt_name, script_dir)
             if not prompt_file:
                 return f"Error: Unable to find prompt file: {prompt_name}"
@@ -125,9 +170,18 @@ def main(prompt: str, file: str | None):
                 return f.read()
 
         # Add save-prompt command as a tool
-        @mcp_server.tool(name="mcp_prompt_library_save_prompt", description="Save a new prompt file with the given section, title and body. Only use this tool when the user explicitly requests to save a prompt in their prompt library.")
-        def save_prompt(section: str, title: str, body: str) -> str:
-            """Save a new prompt file with the given section, title and body."""
+        @mcp_server.tool(name="mcp_prompt_library_save_prompt", description="Save a new prompt file or update an existing one with the given section, title and body. Only use this tool when the user explicitly requests to save a prompt in their prompt library.")
+        def save_prompt(section: str, title: str, body: str, description: str | None = None, when_to_use: list[str] | None = None) -> str:
+            """Save a new prompt file or update an existing one with the given section, title and body.
+            
+            Args:
+                section: The section/category for the prompt (e.g., 'content', 'code', 'planning'). 
+                        Must be lowercase letters, numbers, and hyphens only.
+                title: The title of the prompt. Must be lowercase letters, numbers, and hyphens only.
+                body: The content of the prompt file.
+                description: Optional description of what the prompt does. This will be added to the prompt's metadata.
+                when_to_use: Optional list of scenarios when this prompt should be used. This will be added to the prompt's metadata.
+            """
             # Validate section and title format
             if not section or not section.islower() or not all(c.isalnum() or c == '-' for c in section):
                 return "Error: Section must be lowercase letters, numbers, and hyphens only"
@@ -146,13 +200,32 @@ def main(prompt: str, file: str | None):
             # Ensure target directory exists
             target_dir.mkdir(parents=True, exist_ok=True)
             
+            # Prepare metadata
+            metadata = {}
             if target_file.exists():
-                return f"Error: Prompt file already exists: {target_file}"
+                # If file exists, preserve existing metadata
+                existing_metadata = parse_prompt_metadata(target_file)
+                if existing_metadata:
+                    metadata.update(existing_metadata)
             
+            # Update metadata with new values if provided
+            if description is not None:
+                metadata['description'] = description
+            if when_to_use is not None:
+                metadata['when_to_use'] = when_to_use
+            
+            # Prepare content with metadata
+            content = ""
+            if metadata:
+                content = f"---\n{yaml.dump(metadata, default_flow_style=False)}---\n\n"
+            content += body
+            
+            # Write the file
             with open(target_file, 'w') as f:
-                f.write(body)
+                f.write(content)
             
-            return f"Successfully saved prompt to {target_file}"
+            action = "Updated" if target_file.exists() else "Created"
+            return f"{action} prompt file at {target_file}"
         
         # Find all available prompt files and create prompt endpoints
         prompt_files = find_all_prompt_files(script_dir)
