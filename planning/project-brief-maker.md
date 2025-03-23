@@ -13,6 +13,5 @@ Once we've come to a good conclusion, or once we are ready to wrap up the brains
 compile our findings into a comprehensive, developer-ready specification? Include all relevant
 requirements, architecture choices, data handling details, error handling strategies, and a
 testing plan so a developer can immediately begin implementation.
-Put this into memory-bank/projectbrief.md
 
-Once the projectbrief is written, develop an implementation plan and update the memory-bank
+Name this file project-brief.md

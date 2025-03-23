@@ -62,12 +62,14 @@ def find_prompt_file(prompt_name: str, script_dir: Path) -> Path | None:
 def find_all_prompt_files(script_dir: Path) -> list[Path]:
     """Find all prompt files in any directory under the script directory."""
     prompt_files = []
+    print(f"DEBUG: Searching for prompts in {script_dir}", file=sys.stderr)
     
     # Walk through all directories
     for path in script_dir.rglob("*.md"):
         # Skip README files and hidden directories
         if (path.stem.lower() != "readme" and 
             not any(part.startswith('.') for part in path.parts)):
+            print(f"DEBUG: Found prompt file: {path}", file=sys.stderr)
             prompt_files.append(path)
     
     return prompt_files
@@ -87,9 +89,9 @@ def run_prompt(prompt_file: Path, input_text: str, model: str) -> int:
 @click.argument('file', required=False, type=click.Path(exists=True))
 def main(prompt: str, file: str | None):
     """Run a prompt against input from a file or stdin, or serve as an MCP endpoint."""
-    # Get the directory where this script is located
-    script_dir = Path(__file__).parent
-    print(f"Python script directory: {script_dir}")
+    # Get the prompt library directory from env or script location
+    script_dir = Path(os.environ.get('PROMPT_LIBRARY_PATH', Path(__file__).parent))
+    print(f"Prompt library directory: {script_dir}", file=sys.stderr)
     
     # Get MODEL from environment, default to claude-3.7-sonnet
     model = os.environ.get('MODEL', 'claude-3.7-sonnet')
@@ -99,10 +101,12 @@ def main(prompt: str, file: str | None):
         mcp_server = FastMCP("prompt-library")
         
         # Add list-prompts command as a tool
-        @mcp_server.tool(name="list-prompts", description="List all available prompts")
+        @mcp_server.tool(name="mcp_prompt_library_list_prompts", description="List all available prompts. Only use this tool when the user explicitly requests to see the list of available prompts in their prompt library.")
         def list_prompts() -> str:
             """List all available prompts."""
+            print("DEBUG: list_prompts called", file=sys.stderr)
             prompt_files = find_all_prompt_files(script_dir)
+            print(f"DEBUG: Found {len(prompt_files)} prompt files", file=sys.stderr)
             result = "Available prompts:\n\n"
             for prompt_file in prompt_files:
                 prompt_name = str(prompt_file.relative_to(script_dir)).replace('/', '-').replace('.md', '')
@@ -110,7 +114,7 @@ def main(prompt: str, file: str | None):
             return result
         
         # Add load-prompt command as a tool
-        @mcp_server.tool(name="load-prompt", description="Load and return the contents of a specific prompt")
+        @mcp_server.tool(name="mcp_prompt_library_load_prompt", description="Load and return the contents of a specific prompt. Only use this tool when the user explicitly requests to view the contents of a specific prompt from their prompt library.")
         def load_prompt(prompt_name: str) -> str:
             """Load and return the contents of a specific prompt."""
             prompt_file = find_prompt_file(prompt_name, script_dir)
@@ -121,7 +125,7 @@ def main(prompt: str, file: str | None):
                 return f.read()
 
         # Add save-prompt command as a tool
-        @mcp_server.tool(name="save-prompt", description="Save a new prompt file with the given section, title and body")
+        @mcp_server.tool(name="mcp_prompt_library_save_prompt", description="Save a new prompt file with the given section, title and body. Only use this tool when the user explicitly requests to save a prompt in their prompt library.")
         def save_prompt(section: str, title: str, body: str) -> str:
             """Save a new prompt file with the given section, title and body."""
             # Validate section and title format
@@ -155,6 +159,7 @@ def main(prompt: str, file: str | None):
         for prompt_file in prompt_files:
             # Use relative path from script_dir as the prompt name
             prompt_name = str(prompt_file.relative_to(script_dir)).replace('/', '-').replace('.md', '')
+            print(f"DEBUG: Registering prompt endpoint: {prompt_name}", file=sys.stderr)
             
             def create_prompt_handler(file_path):
                 def get_prompt() -> str:
