@@ -202,4 +202,3 @@ Use the Test-Driven Development Planning Prompt
    - Use color for emphasis
    - Structure output clearly
    - Include headers and separators
-
