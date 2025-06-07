@@ -7,8 +7,8 @@ const ASSETS_TO_CACHE = [
   'style.css',
   'app.js',
   'manifest.json',
-  'https://via.placeholder.com/192',
-  'https://via.placeholder.com/512'
+  'https://placehold.co/192x192.png',
+  'https://placehold.co/512x512.png'
 ];
 
 const RAW_GITHUB_CONTENT_URL_PREFIX = 'https://raw.githubusercontent.com/';
