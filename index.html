@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Prompt Viewer</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <!-- TODO: Replace YOUR_PLAUSIBLE_DOMAIN.COM with your actual Plausible domain -->
+  <script defer data-domain="YOUR_PLAUSIBLE_DOMAIN.COM" src="https://plausible.io/js/script.js"></script>
+</head>
+<body>
+  <div class="header-controls">
+    <h1>Prompt Viewer</h1>
+    <button id="refresh-button">Refresh Prompts</button>
+  </div>
+  <div id="browser"></div>
+  <div id="viewer"></div>
+  <div id="recent">
+    <h2>Recently Viewed</h2>
+    <ul id="recent-list"></ul>
+  </div>
+  <script src="app.js" defer></script>
+</body>
+</html>

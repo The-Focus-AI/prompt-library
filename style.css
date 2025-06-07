@@ -1,0 +1,125 @@
+/* Basic CSS Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Root variables for colors */
+:root {
+  --light-background: #ffffff;
+  --light-text: #000000;
+  --dark-background: #121212;
+  --dark-text: #ffffff;
+  --button-background: #007bff;
+  --button-text: #ffffff;
+  --button-hover-background: #0056b3;
+}
+
+/* Light mode styles */
+body {
+  font-family: sans-serif;
+  background-color: var(--light-background);
+  color: var(--light-text);
+  padding: 10px;
+}
+
+/* Dark mode styles (using prefers-color-scheme) */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--dark-background);
+    color: var(--dark-text);
+  }
+  :root {
+    --button-background: #0056b3; /* Darker button for dark mode */
+    --button-hover-background: #003d80;
+  }
+}
+
+/* Main layout containers */
+h1 {
+  margin-bottom: 15px;
+}
+
+#browser {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  min-height: 100px; /* Ensure it's visible even if empty */
+}
+
+.browser-item {
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.browser-item:hover {
+  background-color: #eee;
+}
+
+@media (prefers-color-scheme: dark) {
+  .browser-item:hover {
+    background-color: #333;
+  }
+  .browser-item.disabled {
+    color: #777;
+  }
+}
+
+.browser-item.disabled {
+  color: #aaa;
+  cursor: default;
+}
+
+.up-button {
+  font-weight: bold;
+}
+
+
+#viewer {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  min-height: 150px; /* Ensure it's visible */
+}
+
+#viewer pre {
+  background-color: #f4f4f4;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto; /* Allow horizontal scrolling for long lines */
+  max-height: 400px; /* Limit height and allow vertical scrolling */
+  overflow-y: auto;
+  white-space: pre-wrap; /* Wrap long lines that are not code */
+  word-break: break-all; /* Break words to prevent overflow */
+}
+
+@media (prefers-color-scheme: dark) {
+  #viewer pre {
+    background-color: #222; /* Darker pre for dark mode */
+    color: var(--dark-text);
+    border: 1px solid #444;
+  }
+}
+
+#viewer button {
+  background-color: var(--button-background);
+  color: var(--button-text);
+  border: none;
+  padding: 8px 15px;
+  margin-top: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+#viewer button:hover {
+  background-color: var(--button-hover-background);
+}
+
+#recent {
+  border: 1px solid #ccc;
+  padding: 10px;
+  min-height: 50px; /* Ensure it's visible */
+}
