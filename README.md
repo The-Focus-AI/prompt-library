@@ -1,127 +1,89 @@
-# Prompt Runner
+# Prompt Viewer PWA
 
-A simple tool to run prompts against files using various LLM models.
+A simple, offline-capable Progressive Web App for browsing and copying prompts from a GitHub repository.
 
-## Installation
+## Features
 
-1. Make sure you have the `llm` command line tool installed
-2. Clone this repository
-3. Make the script executable: `chmod +x run-prompt`
+- 📱 **PWA Support** - Install as a standalone app on mobile/desktop
+- 🔍 **Browse Prompts** - Navigate folder structure mirroring your GitHub repo
+- 📋 **Copy to Clipboard** - One-click copy for any prompt
+- 🌐 **Offline Mode** - Access all cached prompts without internet
+- 🌓 **Dark/Light Mode** - Follows system preferences automatically
+- 📊 **Analytics** - Optional Plausible integration for usage tracking
+- 🕒 **Recently Viewed** - Quick access to your recent prompts
 
-### ZSH Completion
+## Quick Start
 
-To enable zsh completion for run-prompt:
+1. **Configure** - Update `app.js` with your GitHub repo details:
+   ```javascript
+   const CONFIG = {
+       GITHUB_OWNER: 'your-username',
+       GITHUB_REPO: 'your-prompts-repo',
+       GITHUB_BRANCH: 'main'
+   };
+   ```
 
-(update to where you have this installed)
+2. **Add Icons** - Create an `icons/` folder with PWA icons (see deployment.md)
 
-```bash
-# Add this to your .zshrc
-PROMPT_LIBRARY_PATH="/Users/wschenk/prompt-library"
-fpath=($PROMPT_LIBRARY_PATH $fpath)
-export PATH="$PROMPT_LIBRARY_PATH:$PATH"
-autoload -Uz compinit
-compinit
-```
+3. **Deploy** - Push to GitHub and enable GitHub Pages
 
-## Usage
+4. **Access** - Visit `https://your-username.github.io/your-repo-name/`
 
-### CLI
-
-```bash
-run-prompt <prompt_file> <input_file>
-```
-
-You can optionally specify a different model using the MODEL environment variable:
-
-```bash
-MODEL=claude-3.7-sonnet run-prompt <prompt_file> <input_file>
-```
-
-The default model is claude-3.7-sonnet.
-
-### MCP Server
-
-npx @modelcontextprotocol/inspector uv run run-prompt mcp
-
-## Available Prompts
-
-### Content Analysis
-
-- [summarize.md](content/summarize.md) - Generate 5 different two-sentence summaries to encourage readership
-- [key-themes.md](content/key-themes.md) - Extract key themes from the input text
-- [linkedin.md](content/linkedin.md) - Format content as an engaging LinkedIn post
-
-### Code Review
-
-- [lint.md](code/lint.md) - Assess code quality and suggest improvements
-- [git-commit-message.md](code/git-commit-message.md) - Generate semantic commit messages from code diffs
-
-### Repository Analysis
-
-- [architecture-review.md](code/repomix/architecture-review.md) - Review architectural patterns and decisions
-- [api-documentation.md](code/repomix/api-documentation.md) - Generate API documentation
-- [performance-review.md](code/repomix/performance-review.md) - Analyze performance considerations
-- [security-review.md](code/repomix/security-review.md) - Review security implications
-- [developer-guide.md](code/repomix/developer-guide.md) - Create developer documentation
-
-## Examples
-
-Summarize a README file:
-
-```bash
-./run-prompt content/summarize README.md
-```
-
-Extract key themes from a document:
-
-```bash
-./run-prompt content/key-themes document.txt
-```
-
-Format content for LinkedIn:
-
-```bash
-./run-prompt content/linkedin article.txt
-```
-
-Generate a commit message:
-
-```bash
-./run-prompt code/git-commit-message.md diff.txt
-```
-
-Review code quality:
-
-```bash
-./run-prompt code/lint.md source_code.py
-```
-
-## Adding New Prompts
-
-Add new prompt files to the appropriate directory:
-
-- `content/` - For content analysis and formatting prompts
-- `code/` - For code-related prompts
-- `code/repomix/` - For repository analysis prompts
-
-The prompt file should contain the instructions/prompt that will be sent to the LLM along with the content of your input file.
-
-# Usage examples
-
-## ollama
+## Project Structure
 
 ```
-cat repomix-output.txt | ollama run gemma3:12b "$(cat ~/prompts/code/repomix/developer-guide.md )"
+prompt-viewer-pwa/
+├── index.html          # Main HTML file
+├── style.css           # Styles with dark/light mode
+├── app.js              # Core application logic
+├── service-worker.js   # Offline caching logic
+├── manifest.json       # PWA manifest
+├── deployment.md       # Deployment instructions
+├── project-brief.md    # Detailed project specifications
+└── icons/              # PWA icons (create this)
 ```
 
-llm install llm-ollama
+## Configuration
 
-## llm
+### Required Changes
+- Update GitHub owner/repo in `app.js`
+- Update Plausible domain in `index.html` (or remove)
+- Create icon files in various sizes
 
-```bash
-MODEL=${MODEL:-claude-3.7-sonnet}
+### Optional Changes
+- Customize colors in `style.css`
+- Modify cache strategy in `service-worker.js`
+- Update app name/description in `manifest.json`
 
-cat repomix-output.txt | \
-llm -m $MODEL \
-	"$(cat ~/prompts/code/repomix/developer-guide.md )"
-```
+## Browser Support
+
+- ✅ Chrome/Edge (Android)
+- ✅ Safari (iOS)
+- ✅ Firefox
+- ✅ Desktop browsers with PWA support
+
+## Offline Behavior
+
+The app caches:
+- All viewed prompts automatically
+- App assets (HTML, CSS, JS)
+- GitHub API responses
+
+When offline, the app shows the last cached version seamlessly.
+
+## Development
+
+No build process required! This is vanilla HTML/CSS/JavaScript.
+
+To test locally:
+1. Use a local web server (e.g., `python -m http.server`)
+2. Update the service worker cache version when making changes
+3. Test offline mode using browser DevTools
+
+## License
+
+This project is open source. Feel free to modify and use for your own prompt libraries.
+
+## Contributing
+
+Issues and pull requests are welcome! Please check the project brief for design decisions and constraints.
