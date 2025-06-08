@@ -125,3 +125,40 @@ cat repomix-output.txt | \
 llm -m $MODEL \
 	"$(cat ~/prompts/code/repomix/developer-guide.md )"
 ```
+
+---
+
+## Prompt Viewer PWA
+
+This repository also includes a Progressive Web App (PWA) for browsing and copying prompts on mobile devices.
+
+### Features
+
+- 📱 Install as a mobile app
+- 🔍 Browse all prompts with folder navigation
+- 📋 One-click copy to clipboard
+- 🌐 Works offline
+- 🌓 Auto light/dark mode
+
+### Deployment
+
+The PWA is located in the `pwa/` directory. To deploy it on GitHub Pages:
+
+1. Go to Settings → Pages in your GitHub repository
+2. Select "Deploy from a branch"
+3. Choose your main branch and `/pwa` folder as the source
+4. Save the settings
+
+After a few minutes, your PWA will be available at:
+```
+https://the-focus-ai.github.io/prompt-library/
+```
+
+### Using the PWA
+
+1. Visit the URL on your mobile device
+2. You'll see an "Add to Home Screen" prompt (or use browser menu)
+3. Once installed, it works like a native app
+4. Click refresh to cache all prompts for offline use
+
+For more details, see [pwa/deployment.md](pwa/deployment.md).

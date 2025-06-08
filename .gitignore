@@ -1,0 +1,41 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Dependencies (if you add any later)
+node_modules/
+
+# Test coverage
+coverage/
+
+# PWA Icons folder (user should create their own)
+# Uncomment if you want users to add their own icons
+# pwa/icons/
+
+# Local environment files
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+
+# repomix output (if using)
+repomix-output.txt
