@@ -9,6 +9,106 @@ const RECENTLY_VIEWED_KEY = 'promptViewerRecentlyViewed';
 
 let currentPath = '';
 let currentClientId = null; // Store our client ID for SW communication
+let db; // Global variable for IndexedDB
+
+// --- IndexedDB Functions ---
+function initDB() {
+  const request = indexedDB.open('promptViewerDB', 1);
+
+  request.onupgradeneeded = event => {
+    const dbInstance = event.target.result;
+    if (!dbInstance.objectStoreNames.contains('directoryListings')) {
+      dbInstance.createObjectStore('directoryListings', { keyPath: 'path' });
+    }
+  };
+
+  request.onsuccess = event => {
+    db = event.target.result;
+    console.log('Database initialized successfully.');
+  };
+
+  request.onerror = event => {
+    console.error('Database error:', event.target.errorCode);
+  };
+}
+
+function cacheDirectory(path, items) {
+  if (!db) {
+    console.error('DB not initialized. Cannot cache directory.');
+    return;
+  }
+  const transaction = db.transaction(['directoryListings'], 'readwrite');
+  const store = transaction.objectStore('directoryListings');
+  const directoryData = {
+    path: path,
+    items: items,
+    timestamp: new Date().toISOString()
+  };
+
+  const request = store.put(directoryData);
+
+  request.onsuccess = () => {
+    console.log(`Directory "${path}" cached successfully.`);
+  };
+
+  request.onerror = event => {
+    console.error(`Error caching directory "${path}":`, event.target.error);
+  };
+}
+
+function getCachedDirectory(path) {
+  if (!db) {
+    console.error('DB not initialized. Cannot get cached directory.');
+    return Promise.resolve(null); // Return a resolved promise with null
+  }
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['directoryListings'], 'readonly');
+    const store = transaction.objectStore('directoryListings');
+    const request = store.get(path);
+
+    request.onsuccess = () => {
+      if (request.result && request.result.items) {
+        console.log(`Cache hit for directory "${path}".`);
+        resolve(request.result.items);
+      } else {
+        console.log(`Cache miss for directory "${path}".`);
+        resolve(null);
+      }
+    };
+
+    request.onerror = event => {
+      console.error(`Error getting cached directory "${path}":`, event.target.error);
+      reject(event.target.error);
+    };
+  });
+}
+
+async function clearCachedDirectories() {
+  if (!db) {
+    console.error('DB not initialized. Cannot clear cached directories.');
+    return Promise.reject('DB not initialized');
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const transaction = db.transaction(['directoryListings'], 'readwrite');
+      const store = transaction.objectStore('directoryListings');
+      const request = store.clear();
+
+      request.onsuccess = () => {
+        console.log('Directory listings cache cleared successfully.');
+        resolve();
+      };
+
+      request.onerror = event => {
+        console.error('Error clearing directory listings cache:', event.target.error);
+        reject(event.target.error);
+      };
+    } catch (error) {
+        console.error('Exception while trying to clear directory listings cache:', error);
+        reject(error);
+    }
+  });
+}
 
 // --- Helper Functions ---
 function extractFileName(filePath) {
@@ -124,9 +224,65 @@ function renderBrowser(items, path = '') {
 
 async function loadAndRenderPath(path = '') {
   currentPath = path;
-  document.getElementById('viewer').innerHTML = '';
-  const items = await fetchFromGitHub(path);
-  renderBrowser(items, path);
+  const viewerDiv = document.getElementById('viewer'); // Keep viewer clear for files
+  viewerDiv.innerHTML = ''; // Clear viewer in case a file was previously shown
+
+  let items = null;
+  let loadedFromCache = false;
+
+  try {
+    items = await getCachedDirectory(path);
+    if (items) {
+      loadedFromCache = true;
+      console.log(`Rendering directory "${path}" from cache.`);
+      renderBrowser(items, path);
+    }
+  } catch (error) {
+    console.error(`Error loading directory "${path}" from cache:`, error);
+    // Proceed to network fetch even if cache read fails
+  }
+
+  if (!loadedFromCache || navigator.onLine) {
+    console.log(loadedFromCache ? `Online, attempting to refresh directory "${path}" from network.` : `Cache miss or forced refresh for "${path}", fetching from network.`);
+    try {
+      const liveItems = await fetchFromGitHub(path);
+
+      if (liveItems) {
+        // Non-blocking call to cache, await not strictly necessary as its internal ops are async
+        cacheDirectory(path, liveItems);
+
+        // Check if we need to re-render.
+        // Simple length check for now. A more sophisticated diff could be used.
+        const needsReRender = !loadedFromCache || (items && liveItems.length !== items.length) || !items;
+
+        if (needsReRender) {
+          console.log(`Rendering directory "${path}" from network fetched data.`);
+          renderBrowser(liveItems, path);
+        } else {
+          console.log(`Network data for "${path}" is same as cached. No re-render needed.`);
+        }
+      } else { // liveItems is null (fetch failed)
+        if (!loadedFromCache) {
+          // Only render error if nothing was loaded from cache
+          console.error(`Failed to fetch directory "${path}" from network and no cache available.`);
+          renderBrowser(null, path); // Show error/empty state
+        } else {
+          console.warn(`Failed to fetch directory "${path}" from network, but using stale cache data.`);
+          // Already rendered from cache, so do nothing, user sees stale data.
+        }
+      }
+    } catch (fetchError) {
+      console.error(`Error fetching directory "${path}" from GitHub:`, fetchError);
+      if (!loadedFromCache) {
+        // Critical failure: no cache and network fetch failed
+        renderBrowser(null, path);
+      }
+      // If loadedFromCache is true, we've already rendered stale data, which is fine.
+    }
+  } else if (loadedFromCache && !navigator.onLine) {
+    console.log(`Offline, and directory "${path}" was successfully loaded from cache.`);
+    // Already rendered from cache, nothing more to do.
+  }
 }
 
 function navigateToParentDirectory(path) {
@@ -178,11 +334,65 @@ async function loadAndRenderFile(filePath) {
 // --- Service Worker and Caching Logic ---
 async function fetchAllFilePaths(path = '') {
   let mdFilePaths = [];
-  const items = await fetchFromGitHub(path); // This API call is not cached by SW by default.
-  if (items) {
-    for (const item of items) {
-      if (item.type === 'file' && item.name.endsWith('.md')) mdFilePaths.push(item.path);
-      else if (item.type === 'dir') mdFilePaths = mdFilePaths.concat(await fetchAllFilePaths(item.path));
+  let items = null;
+  let loadedFromCache = false;
+
+  try {
+    items = await getCachedDirectory(path);
+    if (items) {
+      loadedFromCache = true;
+      console.log(`fetchAllFilePaths: Cache hit for directory "${path}".`);
+    }
+  } catch (cacheError) {
+    console.error(`fetchAllFilePaths: Error loading directory "${path}" from cache:`, cacheError);
+    // Proceed to network fetch even if cache read fails
+  }
+
+  if (!loadedFromCache || navigator.onLine) {
+    if (loadedFromCache) {
+      console.log(`fetchAllFilePaths: Online, attempting to refresh directory "${path}" from network.`);
+    } else {
+      console.log(`fetchAllFilePaths: Cache miss for "${path}", fetching from network.`);
+    }
+
+    try {
+      const liveItems = await fetchFromGitHub(path);
+      if (liveItems) {
+        cacheDirectory(path, liveItems); // Non-blocking, fire-and-forget
+        items = liveItems; // Use live items for subsequent processing
+        console.log(`fetchAllFilePaths: Fetched and cached directory "${path}" from network.`);
+      } else {
+        if (!loadedFromCache) {
+          console.warn(`fetchAllFilePaths: Could not fetch ${path} from network and not in cache. Skipping.`);
+          return mdFilePaths; // Return what we have so far
+        }
+        // If loadedFromCache is true, 'items' still holds the cached version, which we'll use.
+        console.warn(`fetchAllFilePaths: Failed to refresh ${path} from network, using stale cache data.`);
+      }
+    } catch (fetchError) {
+      console.error(`fetchAllFilePaths: Error fetching directory "${path}" from GitHub:`, fetchError);
+      if (!loadedFromCache) {
+        console.warn(`fetchAllFilePaths: Critical failure for ${path} (no cache, network error). Skipping.`);
+        return mdFilePaths; // Return what we have so far
+      }
+      // If loadedFromCache is true, 'items' still holds the cached version.
+    }
+  } else if (loadedFromCache && !navigator.onLine) {
+    console.log(`fetchAllFilePaths: Offline, using cached directory "${path}".`);
+    // 'items' is already populated from cache
+  }
+
+  if (!items) {
+    console.warn(`fetchAllFilePaths: No items found for path "${path}" after cache/network attempts. Skipping.`);
+    return mdFilePaths;
+  }
+
+  for (const item of items) {
+    if (item.type === 'file' && item.name.endsWith('.md')) {
+      mdFilePaths.push(item.path);
+    } else if (item.type === 'dir') {
+      // Ensure recursive calls are awaited
+      mdFilePaths = mdFilePaths.concat(await fetchAllFilePaths(item.path));
     }
   }
   return mdFilePaths;
@@ -228,12 +438,23 @@ async function handleManualRefresh() {
         return;
     }
     updateRefreshButtonState(true, "Clearing cache...");
+
+    try {
+        await clearCachedDirectories();
+        console.log("Directory cache cleared as part of manual refresh.");
+    } catch (error) {
+        console.error("Failed to clear directory cache during manual refresh:", error);
+        // Optionally, update UI or decide if to proceed with SW cache clearing
+        // For now, we'll proceed with SW cache clearing even if DB clear fails.
+    }
+
     navigator.serviceWorker.controller.postMessage({ action: 'clearPromptCache', clientId: currentClientId });
     // The rest of the process (triggerPromptCaching) will be handled when 'PROMPT_CACHE_CLEARED' is received.
 }
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
+  initDB(); // Initialize IndexedDB
   console.log("app.js loaded");
   renderRecentlyViewed();
 
