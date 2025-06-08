@@ -14,9 +14,15 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
+    caches.open(CACHE_NAME).then(async cache => {
+      const cached = await cache.match(event.request);
+      const fetchPromise = fetch(event.request).then(response => {
+        if (response.ok) cache.put(event.request, response.clone());
+        return response;
+      }).catch(() => cached);
+      return cached || fetchPromise;
     })
   );
 });

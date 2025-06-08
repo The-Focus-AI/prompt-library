@@ -11,6 +11,10 @@ header {
     text-align: center;
 }
 
+#refresh {
+    margin-left: 1rem;
+}
+
 main {
     padding: 1rem;
 }

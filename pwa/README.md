@@ -4,7 +4,7 @@ This folder contains a simple Progressive Web App for browsing and copying promp
 
 ## Development
 
-Open `index.html` in a browser to run locally. A service worker caches the core assets for offline use. Icons are embedded directly in `manifest.json` using base64 data URIs so no binary image files are necessary.
+Open `index.html` in a browser to run locally. Update the `repoOwner`, `repoName` and `branch` variables in `app.js` to point the viewer at a different repository if desired. The service worker caches the core assets and any fetched prompts for offline use. Icons are embedded directly in `manifest.json` using base64 data URIs so no binary image files are necessary.
 
 ## Deployment to GitHub Pages
 
