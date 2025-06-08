@@ -17,9 +17,9 @@ node_modules/
 # Test coverage
 coverage/
 
-# Icons folder (user should create their own)
+# PWA Icons folder (user should create their own)
 # Uncomment if you want users to add their own icons
-# icons/
+# pwa/icons/
 
 # Local environment files
 .env
@@ -28,3 +28,14 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+
+# repomix output (if using)
+repomix-output.txt

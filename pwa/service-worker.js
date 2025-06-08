@@ -1,11 +1,11 @@
 // Service Worker for Prompt Viewer PWA
 const CACHE_NAME = 'prompt-viewer-v1';
 const urlsToCache = [
-    '/',
-    '/index.html',
-    '/style.css',
-    '/app.js',
-    '/manifest.json'
+    '/prompt-library/pwa/',
+    '/prompt-library/pwa/index.html',
+    '/prompt-library/pwa/style.css',
+    '/prompt-library/pwa/app.js',
+    '/prompt-library/pwa/manifest.json'
 ];
 
 // Install event - cache basic assets

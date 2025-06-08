@@ -1,89 +1,164 @@
-# Prompt Viewer PWA
+# Prompt Runner
 
-A simple, offline-capable Progressive Web App for browsing and copying prompts from a GitHub repository.
+A simple tool to run prompts against files using various LLM models.
 
-## Features
+## Installation
 
-- 📱 **PWA Support** - Install as a standalone app on mobile/desktop
-- 🔍 **Browse Prompts** - Navigate folder structure mirroring your GitHub repo
-- 📋 **Copy to Clipboard** - One-click copy for any prompt
-- 🌐 **Offline Mode** - Access all cached prompts without internet
-- 🌓 **Dark/Light Mode** - Follows system preferences automatically
-- 📊 **Analytics** - Optional Plausible integration for usage tracking
-- 🕒 **Recently Viewed** - Quick access to your recent prompts
+1. Make sure you have the `llm` command line tool installed
+2. Clone this repository
+3. Make the script executable: `chmod +x run-prompt`
 
-## Quick Start
+### ZSH Completion
 
-1. **Configure** - Update `app.js` with your GitHub repo details:
-   ```javascript
-   const CONFIG = {
-       GITHUB_OWNER: 'your-username',
-       GITHUB_REPO: 'your-prompts-repo',
-       GITHUB_BRANCH: 'main'
-   };
-   ```
+To enable zsh completion for run-prompt:
 
-2. **Add Icons** - Create an `icons/` folder with PWA icons (see deployment.md)
+(update to where you have this installed)
 
-3. **Deploy** - Push to GitHub and enable GitHub Pages
-
-4. **Access** - Visit `https://your-username.github.io/your-repo-name/`
-
-## Project Structure
-
-```
-prompt-viewer-pwa/
-├── index.html          # Main HTML file
-├── style.css           # Styles with dark/light mode
-├── app.js              # Core application logic
-├── service-worker.js   # Offline caching logic
-├── manifest.json       # PWA manifest
-├── deployment.md       # Deployment instructions
-├── project-brief.md    # Detailed project specifications
-└── icons/              # PWA icons (create this)
+```bash
+# Add this to your .zshrc
+PROMPT_LIBRARY_PATH="/Users/wschenk/prompt-library"
+fpath=($PROMPT_LIBRARY_PATH $fpath)
+export PATH="$PROMPT_LIBRARY_PATH:$PATH"
+autoload -Uz compinit
+compinit
 ```
 
-## Configuration
+## Usage
 
-### Required Changes
-- Update GitHub owner/repo in `app.js`
-- Update Plausible domain in `index.html` (or remove)
-- Create icon files in various sizes
+### CLI
 
-### Optional Changes
-- Customize colors in `style.css`
-- Modify cache strategy in `service-worker.js`
-- Update app name/description in `manifest.json`
+```bash
+run-prompt <prompt_file> <input_file>
+```
 
-## Browser Support
+You can optionally specify a different model using the MODEL environment variable:
 
-- ✅ Chrome/Edge (Android)
-- ✅ Safari (iOS)
-- ✅ Firefox
-- ✅ Desktop browsers with PWA support
+```bash
+MODEL=claude-3.7-sonnet run-prompt <prompt_file> <input_file>
+```
 
-## Offline Behavior
+The default model is claude-3.7-sonnet.
 
-The app caches:
-- All viewed prompts automatically
-- App assets (HTML, CSS, JS)
-- GitHub API responses
+### MCP Server
 
-When offline, the app shows the last cached version seamlessly.
+npx @modelcontextprotocol/inspector uv run run-prompt mcp
 
-## Development
+## Available Prompts
 
-No build process required! This is vanilla HTML/CSS/JavaScript.
+### Content Analysis
 
-To test locally:
-1. Use a local web server (e.g., `python -m http.server`)
-2. Update the service worker cache version when making changes
-3. Test offline mode using browser DevTools
+- [summarize.md](content/summarize.md) - Generate 5 different two-sentence summaries to encourage readership
+- [key-themes.md](content/key-themes.md) - Extract key themes from the input text
+- [linkedin.md](content/linkedin.md) - Format content as an engaging LinkedIn post
 
-## License
+### Code Review
 
-This project is open source. Feel free to modify and use for your own prompt libraries.
+- [lint.md](code/lint.md) - Assess code quality and suggest improvements
+- [git-commit-message.md](code/git-commit-message.md) - Generate semantic commit messages from code diffs
 
-## Contributing
+### Repository Analysis
 
-Issues and pull requests are welcome! Please check the project brief for design decisions and constraints.
+- [architecture-review.md](code/repomix/architecture-review.md) - Review architectural patterns and decisions
+- [api-documentation.md](code/repomix/api-documentation.md) - Generate API documentation
+- [performance-review.md](code/repomix/performance-review.md) - Analyze performance considerations
+- [security-review.md](code/repomix/security-review.md) - Review security implications
+- [developer-guide.md](code/repomix/developer-guide.md) - Create developer documentation
+
+## Examples
+
+Summarize a README file:
+
+```bash
+./run-prompt content/summarize README.md
+```
+
+Extract key themes from a document:
+
+```bash
+./run-prompt content/key-themes document.txt
+```
+
+Format content for LinkedIn:
+
+```bash
+./run-prompt content/linkedin article.txt
+```
+
+Generate a commit message:
+
+```bash
+./run-prompt code/git-commit-message.md diff.txt
+```
+
+Review code quality:
+
+```bash
+./run-prompt code/lint.md source_code.py
+```
+
+## Adding New Prompts
+
+Add new prompt files to the appropriate directory:
+
+- `content/` - For content analysis and formatting prompts
+- `code/` - For code-related prompts
+- `code/repomix/` - For repository analysis prompts
+
+The prompt file should contain the instructions/prompt that will be sent to the LLM along with the content of your input file.
+
+# Usage examples
+
+## ollama
+
+```
+cat repomix-output.txt | ollama run gemma3:12b "$(cat ~/prompts/code/repomix/developer-guide.md )"
+```
+
+llm install llm-ollama
+
+## llm
+
+```bash
+MODEL=${MODEL:-claude-3.7-sonnet}
+
+cat repomix-output.txt | \
+llm -m $MODEL \
+	"$(cat ~/prompts/code/repomix/developer-guide.md )"
+```
+
+---
+
+## Prompt Viewer PWA
+
+This repository also includes a Progressive Web App (PWA) for browsing and copying prompts on mobile devices.
+
+### Features
+
+- 📱 Install as a mobile app
+- 🔍 Browse all prompts with folder navigation
+- 📋 One-click copy to clipboard
+- 🌐 Works offline
+- 🌓 Auto light/dark mode
+
+### Deployment
+
+The PWA is located in the `pwa/` directory. To deploy it on GitHub Pages:
+
+1. Go to Settings → Pages in your GitHub repository
+2. Select "Deploy from a branch"
+3. Choose your main branch and `/pwa` folder as the source
+4. Save the settings
+
+After a few minutes, your PWA will be available at:
+```
+https://the-focus-ai.github.io/prompt-library/
+```
+
+### Using the PWA
+
+1. Visit the URL on your mobile device
+2. You'll see an "Add to Home Screen" prompt (or use browser menu)
+3. Once installed, it works like a native app
+4. Click refresh to cache all prompts for offline use
+
+For more details, see [pwa/deployment.md](pwa/deployment.md).
