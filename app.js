@@ -104,7 +104,9 @@ async function loadContent(path = '') {
 
 // GitHub API Integration
 async function fetchFromGitHub(path = '') {
-    const url = path 
+    // For .md files, use raw content URL
+    // For directories (including root), use GitHub API
+    const url = path && path.endsWith('.md')
         ? `https://raw.githubusercontent.com/${CONFIG.GITHUB_OWNER}/${CONFIG.GITHUB_REPO}/${CONFIG.GITHUB_BRANCH}/${path}`
         : `https://api.github.com/repos/${CONFIG.GITHUB_OWNER}/${CONFIG.GITHUB_REPO}/contents/${path}?ref=${CONFIG.GITHUB_BRANCH}`;
     
