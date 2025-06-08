@@ -1,7 +1,7 @@
 // Configuration
 const CONFIG = {
-    GITHUB_OWNER: 'your-username', // Replace with your GitHub username
-    GITHUB_REPO: 'your-repo-name', // Replace with your repo name
+    GITHUB_OWNER: 'The-Focus-AI', // Updated to your GitHub username
+    GITHUB_REPO: 'prompt-library', // Updated to your repo name
     GITHUB_BRANCH: 'main',
     DB_NAME: 'promptViewerDB',
     DB_VERSION: 1,
@@ -97,6 +97,24 @@ async function loadContent(path = '') {
         }
     } catch (error) {
         console.error('Error loading content:', error);
+        
+        // Try to load from cache if online fetch fails
+        if (!state.isOffline) {
+            try {
+                console.log('Online fetch failed, trying cache...');
+                content = await loadFromCache(path);
+                if (path && path.endsWith('.md')) {
+                    showPrompt(content);
+                } else {
+                    showFileList(content);
+                }
+                showStatus('Loaded from cache', 'offline');
+                return;
+            } catch (cacheError) {
+                console.error('Cache load also failed:', cacheError);
+            }
+        }
+        
         fileList.innerHTML = '<div class="error">Failed to load content</div>';
         showStatus('Failed to load content', 'error');
     }
@@ -125,11 +143,15 @@ async function saveToCache(path, content) {
     const transaction = state.db.transaction([CONFIG.STORE_NAME], 'readwrite');
     const store = transaction.objectStore(CONFIG.STORE_NAME);
     
-    await store.put({
+    // Store the content with proper structure
+    const dataToStore = {
         path: path || 'root',
         content: content,
-        timestamp: Date.now()
-    });
+        timestamp: Date.now(),
+        isDirectory: !path || !path.endsWith('.md')
+    };
+    
+    await store.put(dataToStore);
 }
 
 async function loadFromCache(path) {
@@ -139,7 +161,7 @@ async function loadFromCache(path) {
     return new Promise((resolve, reject) => {
         const request = store.get(path || 'root');
         request.onsuccess = () => {
-            if (request.result) {
+            if (request.result && request.result.content !== undefined) {
                 resolve(request.result.content);
             } else {
                 reject(new Error('Not found in cache'));
@@ -276,15 +298,43 @@ async function refreshContent() {
         return;
     }
     
-    showStatus('Refreshing content...', 'info');
+    showStatus('Refreshing all content...', 'info');
     
     try {
-        // For a full refresh, you would recursively fetch all files
-        // This is a simplified version that refreshes current view
+        // Start recursive caching from root
+        await cacheAllContent('');
+        showStatus('All content refreshed!', 'online');
+        
+        // Reload current view
         await loadContent(state.currentPath);
-        showStatus('Content refreshed', 'online');
     } catch (error) {
+        console.error('Failed to refresh:', error);
         showStatus('Failed to refresh', 'error');
+    }
+}
+
+// Recursively cache all content
+async function cacheAllContent(path = '') {
+    try {
+        const content = await fetchFromGitHub(path);
+        await saveToCache(path, content);
+        
+        // If it's a directory, recursively cache its contents
+        if (Array.isArray(content)) {
+            for (const item of content) {
+                if (item.type === 'dir') {
+                    // Recursively cache subdirectory
+                    await cacheAllContent(item.path);
+                } else if (item.type === 'file' && item.name.endsWith('.md')) {
+                    // Cache markdown file
+                    const fileContent = await fetchFromGitHub(item.path);
+                    await saveToCache(item.path, fileContent);
+                }
+            }
+        }
+    } catch (error) {
+        console.error(`Failed to cache ${path}:`, error);
+        // Continue with other files even if one fails
     }
 }
 
