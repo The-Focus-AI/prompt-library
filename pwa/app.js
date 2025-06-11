@@ -57,6 +57,7 @@ async function initDB() {
 function setupEventListeners() {
     document.getElementById('refresh-btn').addEventListener('click', refreshContent);
     document.getElementById('copy-btn').addEventListener('click', copyToClipboard);
+    document.getElementById('share-btn').addEventListener('click', shareContent); // Added share button listener
     
     window.addEventListener('online', () => updateOnlineStatus(true));
     window.addEventListener('offline', () => updateOnlineStatus(false));
@@ -364,4 +365,23 @@ function showStatus(message, type = 'info') {
     setTimeout(() => {
         indicator.classList.remove('show');
     }, 3000);
+}
+
+// Share Content Function
+async function shareContent() {
+    const content = document.getElementById('prompt-content').textContent;
+
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                text: content,
+            });
+            showStatus('Content shared successfully!', 'online');
+        } catch (error) {
+            console.error('Error sharing:', error);
+            showStatus('Error sharing content', 'error');
+        }
+    } else {
+        showStatus('Share feature not supported on this browser.', 'info');
+    }
 }
