@@ -385,3 +385,38 @@ async function shareContent() {
         showStatus('Share feature not supported on this browser.', 'info');
     }
 }
+
+// Listen for service worker update messages and show update notification
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js').then(reg => {
+        console.log('Service Worker registered');
+        // Listen for update messages
+        navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data && event.data.action === 'swUpdated') {
+                showUpdateNotification();
+            }
+        });
+    }).catch(err => console.error('Service Worker registration failed:', err));
+}
+
+function showUpdateNotification() {
+    let updateBar = document.getElementById('update-bar');
+    if (!updateBar) {
+        updateBar = document.createElement('div');
+        updateBar.id = 'update-bar';
+        updateBar.className = 'update-bar';
+        updateBar.innerHTML = `
+            <span>New version available!</span>
+            <button id="reload-btn">Reload</button>
+        `;
+        document.body.appendChild(updateBar);
+        document.getElementById('reload-btn').addEventListener('click', () => {
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
+            }
+            // Wait a moment for SW to activate, then reload
+            setTimeout(() => window.location.reload(), 500);
+        });
+    }
+    updateBar.style.display = 'flex';
+}
