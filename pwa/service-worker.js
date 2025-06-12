@@ -1,5 +1,6 @@
 // Service Worker for Prompt Viewer PWA
-const CACHE_NAME = 'prompt-viewer-v1';
+const CACHE_VERSION = 2; // <--- INCREMENT THIS ON EVERY DEPLOY
+const CACHE_NAME = `prompt-viewer-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/prompt-library/pwa/',
     '/prompt-library/pwa/index.html',
@@ -19,7 +20,7 @@ self.addEventListener('install', event => {
     );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and notify clients
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
@@ -31,36 +32,56 @@ self.addEventListener('activate', event => {
                     }
                 })
             );
+        }).then(() => {
+            // Notify all clients about the new version
+            self.clients.matchAll({ type: 'window' }).then(clients => {
+                clients.forEach(client => {
+                    client.postMessage({ action: 'swUpdated' });
+                });
+            });
         })
     );
 });
 
-// Fetch event - serve from cache when offline
+// Fetch event - stale-while-revalidate for static assets
 self.addEventListener('fetch', event => {
     // Skip non-GET requests
     if (event.request.method !== 'GET') return;
-    
+
+    // Only use stale-while-revalidate for our static assets
+    const isStaticAsset = urlsToCache.some(url => event.request.url.endsWith(url.replace('/prompt-library/pwa/', '')) || event.request.url.includes(url));
+
+    if (isStaticAsset) {
+        event.respondWith(
+            caches.open(CACHE_NAME).then(cache =>
+                cache.match(event.request).then(cachedResponse => {
+                    const fetchPromise = fetch(event.request).then(networkResponse => {
+                        if (networkResponse && networkResponse.status === 200) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    }).catch(() => cachedResponse);
+                    // Return cached response immediately, update in background
+                    return cachedResponse || fetchPromise;
+                })
+            )
+        );
+        return;
+    }
+
+    // Default: cache-first for GitHub API/raw files, fallback to offline page
     event.respondWith(
         caches.match(event.request)
             .then(response => {
-                // Return cached response if found
                 if (response) {
                     return response;
                 }
-                
-                // Clone the request
                 const fetchRequest = event.request.clone();
-                
                 return fetch(fetchRequest).then(response => {
-                    // Check if valid response
                     if (!response || response.status !== 200 || response.type !== 'basic') {
                         return response;
                     }
-                    
-                    // Clone the response
                     const responseToCache = response.clone();
-                    
-                    // Cache GitHub API responses and raw files
                     if (event.request.url.includes('github.com') || 
                         event.request.url.includes('githubusercontent.com')) {
                         caches.open(CACHE_NAME)
@@ -68,11 +89,9 @@ self.addEventListener('fetch', event => {
                                 cache.put(event.request, responseToCache);
                             });
                     }
-                    
                     return response;
                 }).catch(() => {
-                    // Return offline page if available
-                    return caches.match('/index.html');
+                    return caches.match('/prompt-library/pwa/index.html');
                 });
             })
     );
@@ -83,9 +102,7 @@ self.addEventListener('message', event => {
     if (event.data.action === 'skipWaiting') {
         self.skipWaiting();
     }
-    
     if (event.data.action === 'cacheAll') {
-        // This would be used for caching all prompts
         event.waitUntil(
             cacheAllPrompts(event.data.urls)
         );
@@ -95,8 +112,6 @@ self.addEventListener('message', event => {
 // Helper function to cache all prompts
 async function cacheAllPrompts(urls) {
     const cache = await caches.open(CACHE_NAME);
-    
-    // Fetch and cache each URL
     const promises = urls.map(async url => {
         try {
             const response = await fetch(url);
@@ -107,6 +122,5 @@ async function cacheAllPrompts(urls) {
             console.error('Failed to cache:', url, error);
         }
     });
-    
     return Promise.all(promises);
 }
