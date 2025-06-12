@@ -1,5 +1,5 @@
 // Service Worker for Prompt Viewer PWA
-const CACHE_VERSION = 2; // <--- INCREMENT THIS ON EVERY DEPLOY
+const CACHE_VERSION = 3; // <--- INCREMENT THIS ON EVERY DEPLOY
 const CACHE_NAME = `prompt-viewer-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/prompt-library/pwa/',
