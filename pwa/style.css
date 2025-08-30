@@ -297,20 +297,19 @@ section h2 {
         padding: 0.7rem 1.1rem;
         font-size: 1rem;
     }
-    .viewer-actions {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(24, 25, 42, 0.98);
-        border-top: 2px solid var(--accent2-color);
-        box-shadow: 0 -2px 16px 2px var(--accent2-color);
-        padding: 0.7rem 0.5rem 1.1rem 0.5rem;
-        z-index: 1001;
-        margin-top: 0;
-    }
     #viewer-section {
-        padding-bottom: 4.5rem;
+        display: flex;
+        flex-direction: column;
+    }
+    .viewer-actions {
+        order: -1; /* Move buttons to top */
+        background: rgba(24, 25, 42, 0.95);
+        border: 1.5px solid var(--accent2-color);
+        border-radius: 8px;
+        box-shadow: 0 0 8px 2px var(--accent2-color);
+        padding: 0.7rem 0.5rem;
+        margin-bottom: 1rem;
+        margin-top: 0;
     }
 }
 
