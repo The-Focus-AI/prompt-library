@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cache Update Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .pass { background: #d4edda; color: #155724; }
+        .fail { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Cache Update Test</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        const results = document.getElementById('test-results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        async function runTests() {
+            addResult('Starting cache update tests...');
+            
+            // Test 1: Service Worker Registration
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.register('../service-worker.js');
+                    addResult('✓ Service Worker registered successfully', 'pass');
+                    
+                    // Test 2: Check if SW can receive messages
+                    if (navigator.serviceWorker.controller) {
+                        addResult('✓ Service Worker is controlling the page', 'pass');
+                    } else {
+                        addResult('⚠ Service Worker not yet controlling the page (expected on first load)', 'info');
+                    }
+                    
+                    // Test 3: Test message handling
+                    navigator.serviceWorker.addEventListener('message', (event) => {
+                        if (event.data && event.data.action === 'swUpdated') {
+                            addResult('✓ Received swUpdated message from service worker', 'pass');
+                        }
+                        if (event.data && event.data.action === 'clearIndexedDB') {
+                            addResult('✓ Received clearIndexedDB message from service worker', 'pass');
+                        }
+                    });
+                    
+                    // Test 4: Check IndexedDB functionality
+                    const dbRequest = indexedDB.open('promptViewerDB', 1);
+                    dbRequest.onsuccess = () => {
+                        addResult('✓ IndexedDB connection successful', 'pass');
+                    };
+                    dbRequest.onerror = () => {
+                        addResult('✗ IndexedDB connection failed', 'fail');
+                    };
+                    
+                } catch (error) {
+                    addResult('✗ Service Worker registration failed: ' + error.message, 'fail');
+                }
+            } else {
+                addResult('✗ Service Worker not supported', 'fail');
+            }
+            
+            addResult('Test completed. Refresh the page after updating CACHE_VERSION to test update mechanism.');
+        }
+        
+        runTests();
+    </script>
+</body>
+</html>

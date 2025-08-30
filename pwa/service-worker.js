@@ -1,5 +1,5 @@
 // Service Worker for Prompt Viewer PWA
-const CACHE_VERSION = 3; // <--- INCREMENT THIS ON EVERY DEPLOY
+const CACHE_VERSION = 4; // <--- INCREMENT THIS ON EVERY DEPLOY
 const CACHE_NAME = `prompt-viewer-v${CACHE_VERSION}`;
 const urlsToCache = [
     '/prompt-library/pwa/',
@@ -18,12 +18,15 @@ self.addEventListener('install', event => {
                 return cache.addAll(urlsToCache);
             })
     );
+    // Skip waiting to activate immediately
+    self.skipWaiting();
 });
 
 // Activate event - clean up old caches and notify clients
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
+            const oldCacheFound = cacheNames.some(cacheName => cacheName !== CACHE_NAME);
             return Promise.all(
                 cacheNames.map(cacheName => {
                     if (cacheName !== CACHE_NAME) {
@@ -31,8 +34,21 @@ self.addEventListener('activate', event => {
                         return caches.delete(cacheName);
                     }
                 })
-            );
+            ).then(() => {
+                // If old cache was found, this is an update
+                if (oldCacheFound) {
+                    console.log('Service worker updated, clearing IndexedDB cache');
+                    // Notify clients to clear IndexedDB cache
+                    self.clients.matchAll({ type: 'window' }).then(clients => {
+                        clients.forEach(client => {
+                            client.postMessage({ action: 'clearIndexedDB' });
+                        });
+                    });
+                }
+            });
         }).then(() => {
+            // Claim all clients immediately
+            self.clients.claim();
             // Notify all clients about the new version
             self.clients.matchAll({ type: 'window' }).then(clients => {
                 clients.forEach(client => {
@@ -106,6 +122,14 @@ self.addEventListener('message', event => {
         event.waitUntil(
             cacheAllPrompts(event.data.urls)
         );
+    }
+    if (event.data.action === 'clearIndexedDB') {
+        // Notify clients to clear their IndexedDB cache
+        self.clients.matchAll({ type: 'window' }).then(clients => {
+            clients.forEach(client => {
+                client.postMessage({ action: 'clearIndexedDB' });
+            });
+        });
     }
 });
 

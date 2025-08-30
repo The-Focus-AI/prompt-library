@@ -172,6 +172,25 @@ async function loadFromCache(path) {
     });
 }
 
+async function clearCache() {
+    try {
+        // Clear content cache - this removes all cached prompt content
+        const transaction = state.db.transaction([CONFIG.STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(CONFIG.STORE_NAME);
+        await store.clear();
+        
+        // Clear recently viewed cache - this removes the recently viewed list
+        const recentTransaction = state.db.transaction([CONFIG.RECENT_STORE], 'readwrite');
+        const recentStore = recentTransaction.objectStore(CONFIG.RECENT_STORE);
+        await recentStore.clear();
+        
+        console.log('IndexedDB cache cleared - fresh content will be loaded');
+        showStatus('Cache cleared - loading fresh content...', 'info');
+    } catch (error) {
+        console.error('Failed to clear cache:', error);
+    }
+}
+
 // UI Updates
 function showFileList(items) {
     const browserSection = document.getElementById('browser-section');
@@ -395,6 +414,12 @@ if ('serviceWorker' in navigator) {
             if (event.data && event.data.action === 'swUpdated') {
                 showUpdateNotification();
             }
+            if (event.data && event.data.action === 'clearIndexedDB') {
+                clearCache().then(() => {
+                    // Reload content after cache is cleared
+                    loadContent(state.currentPath);
+                });
+            }
         });
     }).catch(err => console.error('Service Worker registration failed:', err));
 }
@@ -407,10 +432,13 @@ function showUpdateNotification() {
         updateBar.className = 'update-bar';
         updateBar.innerHTML = `
             <span>New version available!</span>
-            <button id="reload-btn">Reload</button>
+            <button id="reload-btn">Update Now</button>
         `;
         document.body.appendChild(updateBar);
-        document.getElementById('reload-btn').addEventListener('click', () => {
+        document.getElementById('reload-btn').addEventListener('click', async () => {
+            // Clear IndexedDB cache before reloading
+            await clearCache();
+            
             if (navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
             }
