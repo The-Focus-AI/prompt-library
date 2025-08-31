@@ -37,7 +37,7 @@
 }
 
 body {
-    font-family: 'Crimson Text', Georgia, 'Times New Roman', serif;
+    font-family: 'EB Garamond', 'Garamond', Georgia, 'Times New Roman', serif;
     background: var(--gradient-bg);
     color: var(--text-primary);
     line-height: 1.6;
@@ -90,7 +90,7 @@ header .icon-btn {
     border-radius: 3px;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-family: 'Crimson Text', Georgia, 'Times New Roman', serif;
+    font-family: 'EB Garamond', 'Garamond', Georgia, 'Times New Roman', serif;
 }
 
 .icon-btn {
@@ -195,7 +195,7 @@ section h2 {
     gap: 0.7rem;
     color: var(--text-secondary);
     box-shadow: var(--shadow);
-    font-family: 'Crimson Text', Georgia, 'Times New Roman', serif;
+    font-family: 'EB Garamond', 'Garamond', Georgia, 'Times New Roman', serif;
     text-shadow: none;
 }
 
@@ -245,7 +245,7 @@ section h2 {
     transform: translateY(10px);
     transition: all 0.3s ease;
     color: var(--text-primary);
-    font-family: 'Crimson Text', Georgia, 'Times New Roman', serif;
+    font-family: 'EB Garamond', 'Garamond', Georgia, 'Times New Roman', serif;
     text-shadow: none;
 }
 
