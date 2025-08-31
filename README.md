@@ -1,6 +1,17 @@
-# Prompt Runner
+# Prompt Library
 
-A simple tool to run prompts against files using various LLM models.
+A comprehensive prompt library with multiple interfaces: CLI tool, macOS menubar app, MCP server, and PWA. Easily access, copy, and use AI prompts across different platforms and AI tools.
+
+## Interfaces
+
+This prompt library offers four different ways to access your prompts:
+
+1. **🧠 macOS Menubar App** - Quick access with click-to-copy functionality
+2. **⌨️ CLI Tool** - Command-line interface for automation and scripting
+3. **🔗 MCP Server** - Standardized interface for AI assistants and tools
+4. **📱 PWA (Progressive Web App)** - Cross-platform web app for mobile devices
+
+Choose the interface that best fits your workflow!
 
 ## Installation
 
@@ -25,6 +36,32 @@ compinit
 
 ## Usage
 
+### macOS Menubar App
+
+The macOS menubar app provides quick access to all your prompts with a simple click-to-copy interface.
+
+**Features:**
+- 🧠 Brain icon in the macOS menubar
+- 📁 Hierarchical menu organized by categories
+- 📋 One-click copy to clipboard with notification
+- 🔍 Automatic file monitoring and updates
+- ✨ Clean, formatted prompt names
+
+**Quick Start:**
+```bash
+cd menubar
+swift pdfbar.swift --dir ~/prompt-library &
+```
+
+**Usage:**
+1. Click the brain icon (🧠) in your menubar
+2. Navigate through categories (Code, Content, Planning, etc.)
+3. Click any prompt name to copy its content to clipboard
+4. You'll see a notification confirming the copy
+5. Paste anywhere with Cmd+V
+
+For detailed installation instructions and troubleshooting, see [menubar/README.md](menubar/README.md).
+
 ### CLI
 
 ```bash
@@ -41,7 +78,47 @@ The default model is claude-3.7-sonnet.
 
 ### MCP Server
 
+The Model Context Protocol (MCP) server provides a standardized interface for AI assistants to access your prompt library programmatically.
+
+**Features:**
+- 🔍 **List Prompts**: Discover all available prompts with descriptions
+- 📖 **Load Prompts**: Retrieve the full content of specific prompts
+- 💾 **Save Prompts**: Create or update prompts with metadata
+- 🏷️ **Metadata Support**: Add descriptions and usage information
+- 🔗 **Standardized Interface**: Compatible with MCP-enabled AI tools
+
+**Quick Start:**
+```bash
+# Start MCP server in STDIO mode
+./run-prompt mcp
+
+# Or inspect with MCP Inspector
 npx @modelcontextprotocol/inspector uv run run-prompt mcp
+```
+
+**Available MCP Tools:**
+- `mcp_prompt_library_list_prompts` - List all available prompts
+- `mcp_prompt_library_load_prompt` - Load a specific prompt's content  
+- `mcp_prompt_library_save_prompt` - Save a new prompt or update existing
+
+**Usage with AI Assistants:**
+Configure your AI assistant (Claude Desktop, etc.) to use this MCP server by adding to your MCP configuration file:
+
+```json
+{
+  "mcpServers": {
+    "prompt-library": {
+      "command": "uv",
+      "args": ["run", "/path/to/prompt-library/run-prompt", "mcp"],
+      "cwd": "/path/to/prompt-library"
+    }
+  }
+}
+```
+
+**📚 Documentation:**
+- [MCP-SERVER.md](MCP-SERVER.md) - Complete MCP server user guide
+- [guides/mcp-implementation-guide.md](guides/mcp-implementation-guide.md) - MCP development guide
 
 ## Available Prompts
 
