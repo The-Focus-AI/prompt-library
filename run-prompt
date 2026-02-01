@@ -122,8 +122,8 @@ def main(prompt: str, file: str | None):
     script_dir = Path(os.environ.get('PROMPT_LIBRARY_PATH', Path(__file__).parent))
     print(f"Prompt library directory: {script_dir}", file=sys.stderr)
     
-    # Get MODEL from environment, default to claude-3.7-sonnet
-    model = os.environ.get('MODEL', 'claude-3.7-sonnet')
+    # Get MODEL from environment, default to claude-sonnet-4.5
+    model = os.environ.get('MODEL', 'claude-sonnet-4.5')
     
     if prompt == "mcp":
         # Create MCP server in stdio mode
